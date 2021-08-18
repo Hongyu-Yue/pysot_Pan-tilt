@@ -30,9 +30,12 @@ parser.add_argument('--config', type=str, help='config file')
 parser.add_argument('--snapshot',  type=str, help='model name')
 parser.add_argument('--video_name', default='', type=str,
                     help='videos or image files')
-parser.add_argument('--camara', type=str,default='net', help='hk or net')
-parser.add_argument('--control', type=str,default='nocontrol', help='nocontrol or noauto or auto')
-parser.add_argument('--record', type=str,default='no', help='yes or no')
+
+parser.add_argument('--camara', type=str,default='net', help='海康摄像头还是网络摄像头，hk or net')
+parser.add_argument('--control', type=str,default='nocontrol', help='如何控制云台，nocontrol or noauto or auto')
+parser.add_argument('--record', type=str,default='no', help='是否存录像，yes or no')
+parser.add_argument('--trace', type=str,default='yes', help='是否显示轨迹，yes or no')
+
 args = parser.parse_args()
 
 
@@ -95,6 +98,9 @@ def get_frames(video_name):
                 frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
             elif args.camara == "net":
                 ret, frame = cap.read()
+            else :
+                print("please set whitch camara")
+                assert (0)
             frame = cv2.resize(frame, (1280, 1024))  # 改分辨率
             if ret: #1表示读到视频
                 yield frame
@@ -126,6 +132,9 @@ def main():
 
     #box缓存
     box_temp=[0, 0, 0, 0]
+
+    #轨迹
+    trail = []
 
     # create model
     model = ModelBuilder()
@@ -168,7 +177,7 @@ def main():
         else:
             outputs = tracker.track(frame)
 
-            if 'polygon' in outputs:
+            if 'polygon' in outputs:    #不知道这个分支是干嘛的
                 polygon = np.array(outputs['polygon']).astype(np.int32)
                 cv2.polylines(frame, [polygon.reshape((-1, 1, 2))],
                               True, (0, 255, 0), 3)
@@ -176,17 +185,36 @@ def main():
                 mask = mask.astype(np.uint8)
                 mask = np.stack([mask, mask*255, mask]).transpose(1, 2, 0)
                 frame = cv2.addWeighted(frame, 0.77, mask, 0.23, -1)
-            else:
-                if outputs['lost'] == 0:
+            else:   #默认进这个
+                if outputs['lost'] == 0:    #跟上
                     bbox = list(map(int, outputs['bbox']))
                     cv2.putText(frame, "Tracking OK", (100, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.75,
                                 (0, 255, 0), 2)
                     cv2.rectangle(frame, (bbox[0], bbox[1]),
                                  (bbox[0]+bbox[2], bbox[1]+bbox[3]),
                                  (0, 255, 0), 3)
+                    if args.trace == "yes": #显示轨迹功能
+                        midx=bbox[0]+bbox[2]/2
+                        midy=bbox[1]+bbox[3]/2  #中心点
+                        if trail:
+                            if abs((trail[-1][0]-midx)+(trail[-1][1]-midy)) > 10:       #当前位置大于上个位置十个像素才算作移动
+                                trail.append([midx,midy])
+                            else:
+                                pass
+                        else:       #第一个像素不需要判断，直接加进来
+                            trail.append([midx, midy])
+                        len_trail = len(trail)
+                        if len_trail > 30:       #长度维持在30
+                            trail.pop(0)
+                            len_trail = len_trail-1
+                        print(len_trail)
+                        if len_trail >= 2:
+                            for coor in range(len_trail-1):  #画出来轨迹
+                                #cv2.circle(frame, (int(coor[0]), int(coor[1])), 3, (255, 255,170), 3)
+                                cv2.line(frame, (int(trail[coor][0]),int(trail[coor][1])), (int(trail[coor+1][0]),int(trail[coor+1][1])), (255, 255, 170), 2)
                     if args.control == "auto":
-                    ###################根据识别结果自动控制云台#####################
-                    #本帧与下一帧偏差小于5个像素才控制云台，bias为帧偏移量记录数据
+                        ###################根据识别结果自动控制云台#####################
+                        #本帧与下一帧偏差小于5个像素才控制云台，bias为帧偏移量记录数据
                         box_bias=abs(bbox[0] - box_temp[0])+ \
                                  abs(bbox[1] - box_temp[1])+ \
                                  abs(bbox[2] - box_temp[2])+ \
@@ -197,8 +225,8 @@ def main():
                             ss.control(bbox[0],bbox[1],bbox[2],bbox[3],1280,1024) #帧偏移量大则控制云台移动
                         else:
                             ss.stop()
-                    #############################################################
-                else:
+                        #############################################################
+                else:   #报跟丢
                     cv2.putText(frame, "Tracking failure detected", (100, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.75,
                               (0, 0, 255), 2)
 
