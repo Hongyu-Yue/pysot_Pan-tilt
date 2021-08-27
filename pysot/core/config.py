@@ -277,11 +277,11 @@ __C.TRACK.CONTEXT_AMOUNT = 0.5
 # Long term lost search size
 __C.TRACK.LOST_INSTANCE_SIZE = 831
 
-# Long term confidence low
-__C.TRACK.CONFIDENCE_LOW = 0.85
+# Long term confidence low0.85
+__C.TRACK.CONFIDENCE_LOW = 0.75
 
-# Long term confidence high
-__C.TRACK.CONFIDENCE_HIGH = 0.998
+# Long term confidence high0.998
+__C.TRACK.CONFIDENCE_HIGH = 0.8
 
 # Mask threshold
 __C.TRACK.MASK_THERSHOLD = 0.30

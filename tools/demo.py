@@ -33,8 +33,8 @@ parser.add_argument('--video_name', default='', type=str,
 
 parser.add_argument('--camara', type=str,default='net', help='海康摄像头还是网络摄像头，hk or net')
 parser.add_argument('--control', type=str,default='nocontrol', help='如何控制云台，nocontrol or noauto or auto')
-parser.add_argument('--record', type=str,default='no', help='是否存录像，yes or no')
-parser.add_argument('--trace', type=str,default='yes', help='是否显示轨迹，yes or no')
+parser.add_argument('--record', type=str,default='yes', help='是否存录像，yes or no')
+parser.add_argument('--trace', type=str,default='no', help='是否显示轨迹，yes or no')
 
 args = parser.parse_args()
 
@@ -109,14 +109,18 @@ def get_frames(video_name):
     elif video_name.endswith('avi') or \
         video_name.endswith('mp4'):
         cap = cv2.VideoCapture(args.video_name)
+        # cap.set(3, 1920)
+        # cap.set(4, 1080)
         while True:
             ret, frame = cap.read()
+
             if ret:
                 yield frame
             else:
                 break
     else:
         images = glob(os.path.join(video_name, '*.jp*'))
+        print(images)
         images = sorted(images,
                         key=lambda x: int(x.split('/')[-1].split('.')[0]))
         for img in images:
@@ -155,7 +159,7 @@ def main():
     #是否录制视频
     if args.record == "yes":
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter(r'C:\Users\dell\Videos\output.avi', fourcc, 20.0, (1280, 1024),True)
+        out = cv2.VideoWriter(r'C:\Users\dell\Pictures.avi', fourcc, 20.0, (640, 512),True)
 
     first_frame = True
 
@@ -192,7 +196,8 @@ def main():
                                 (0, 255, 0), 2)
                     cv2.rectangle(frame, (bbox[0], bbox[1]),
                                  (bbox[0]+bbox[2], bbox[1]+bbox[3]),
-                                 (0, 255, 0), 3)
+                                 (0, 255, 0), 1)
+                    print(frame.shape)
                     if args.trace == "yes": #显示轨迹功能
                         midx=bbox[0]+bbox[2]/2
                         midy=bbox[1]+bbox[3]/2  #中心点
